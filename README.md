@@ -13,6 +13,14 @@ This repository contains a Python script designed to calculate the metrics based
 ``` python main.py ```
 
 ## Reference Paper
-```
-Liong, G-B., See, J. and C.S. Chan (2023). Spot-then-recognize: A micro-expression analysis network for seamless evaluation of long videos. Signal Processing: Image Communication, vol. 110, pp. 116875, January 2023, doi: 10.1016/j.image.2022.116875
+```bibtex
+@article{liong2023spot,
+  title={Spot-then-recognize: A micro-expression analysis network for seamless evaluation of long videos},
+  author={Liong, Gen-Bing and See, John and Chan, Chee-Seng},
+  journal={Signal Processing: Image Communication},
+  volume={110},
+  pages={116875},
+  year={2023},
+  publisher={Elsevier}
+}
 ```
