@@ -26,7 +26,10 @@ class Evaluator:
         for emotion in label_list:
             gt = [1 if x["emotion"]==emotion else 0 for x in TP_df["gt"]]
             pred = [1 if x["emotion"]==emotion else 0 for x in TP_df["pred"]]
-            _, FP, FN, TP = confusion_matrix(gt, pred).ravel()
+            try:
+                _, FP, FN, TP = confusion_matrix(gt, pred).ravel()
+            except:
+                FP = FN = TP = 0
             precision, recall, f1 = self._calculate_metrics(TP, FP, FN)
             precision_list.append(precision)
             recall_list.append(recall)
