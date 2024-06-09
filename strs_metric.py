@@ -12,25 +12,25 @@ class Evaluator:
         union = np.union1d(np.arange(pred["onset"], pred["offset"]+1), np.arange(gt["onset"], gt["offset"]+1)).size
         return intersection / union if union != 0 else 0
 
-    def _calculate_metrics(self, TP, FP, FN):
+    def calculate_metrics(self, TP, FP, FN):
         """ Calculate precision, recall and f1-score. """
         precision = TP / (TP + FP) if TP + FP != 0 else 0
         recall = TP / (TP + FN) if TP + FN != 0 else 0
         f1 = 2 * precision * recall / (precision + recall) if precision + recall != 0 else 0
         return precision, recall, f1
     
-    def _calculate_analysis_metrics(self, TP_df, label_list):
+    def calculate_analysis_metrics(self, TP_df, analysis_emotion):
         """ Calculate metrics for the analysis task. """
         precision_list, recall_list, f1_list = [], [], []
 
-        for emotion in label_list:
+        for emotion in analysis_emotion:
             gt = [1 if x["emotion"]==emotion else 0 for x in TP_df["gt"]]
             pred = [1 if x["emotion"]==emotion else 0 for x in TP_df["pred"]]
             try:
                 _, FP, FN, TP = confusion_matrix(gt, pred).ravel()
             except:
                 FP = FN = TP = 0
-            precision, recall, f1 = self._calculate_metrics(TP, FP, FN)
+            precision, recall, f1 = self.calculate_metrics(TP, FP, FN)
             precision_list.append(precision)
             recall_list.append(recall)
             f1_list.append(f1)
@@ -52,7 +52,7 @@ class Evaluator:
             matched = False
             for gt_row, gt in gt_df_video.iterrows():
                 iou = self._calculate_iou(pred, gt)
-                if iou >= iou_threshold:
+                if iou >= iou_threshold and gt_row not in matched_gt_indices:
                     TP_spot_df = TP_spot_df.append({"pred": pred, "gt": gt, "iou": iou}, ignore_index=True)
                     matched_gt_indices.add(gt_row)
                     matched = True
@@ -64,10 +64,11 @@ class Evaluator:
 
         return TP_spot_df, FP_spot_df, FN_spot_df
     
-    def evaluate_analysis(self, TP_spot_df, label_list):
+    def evaluate_analysis(self, TP_spot_df, analysis_emotion):
         """ Evaluate analysis task from the spotted TP intervals. """
         TP_video_df, FP_video_df, FN_video_df = (pd.DataFrame() for _ in range(3))
-        for emotion in label_list:
+        TP_spot_df = TP_spot_df[TP_spot_df['gt'].apply(lambda x: x['emotion'] in analysis_emotion)] if len(TP_spot_df) > 0 else TP_spot_df
+        for emotion in analysis_emotion:
             TP_analysis_df, FP_analysis_df, FN_analysis_df = (pd.DataFrame() for _ in range(3))
             TP_indices = set()
             for row_index, TP_row in TP_spot_df.iterrows():
@@ -87,9 +88,9 @@ class Evaluator:
 
         return TP_video_df, FP_video_df, FN_video_df
     
-    def evaluate_STRS(self, pred_df, gt_df):
+    def evaluate_STRS(self, pred_df, gt_df, analysis_emotion=None):
         """ Evaluate STRS metric. """
-        label_list = list(set(pred_df["emotion"].unique()) | set(gt_df["emotion"].unique()))
+        analysis_emotion = set(gt_df["emotion"].unique()) if analysis_emotion is None else analysis_emotion
         subject_list = pred_df["subject"].unique()
         subject_dict = {}
         for subject in subject_list:
@@ -111,7 +112,7 @@ class Evaluator:
 
             for _, video_data in video_dict.items():
                 TP_spot_df, FP_spot_df, FN_spot_df = self.evaluate_spotting(video_data["pred"], video_data["gt"])
-                TP_video_df, FP_video_df, FN_video_df = self.evaluate_analysis(TP_spot_df, label_list)
+                TP_video_df, FP_video_df, FN_video_df = self.evaluate_analysis(TP_spot_df, analysis_emotion)
 
                 TP_spot_all_df = TP_spot_all_df.append(TP_spot_df, ignore_index=True)
                 FP_spot_all_df = FP_spot_all_df.append(FP_spot_df, ignore_index=True)
@@ -122,9 +123,9 @@ class Evaluator:
 
         TP_spot, FP_spot, FN_spot = len(TP_spot_all_df), len(FP_spot_all_df), len(FN_spot_all_df)
         TP_analysis, FP_analysis, FN_analysis = len(TP_analysis_all_df), len(FP_analysis_all_df), len(FN_analysis_all_df)
-        precision_spot, recall_spot, f1_spot = self._calculate_metrics(TP_spot, FP_spot, FN_spot)
-        precision_analysis, recall_analysis, f1_analysis, uf1_analysis, uar_analysis = self._calculate_analysis_metrics(TP_spot_all_df, label_list)
-
+        precision_spot, recall_spot, f1_spot = self.calculate_metrics(TP_spot, FP_spot, FN_spot)
+        precision_analysis, recall_analysis, f1_analysis, uf1_analysis, uar_analysis = self.calculate_analysis_metrics(TP_spot_all_df, analysis_emotion)
+        
         res = {
             "STRS": f1_spot * f1_analysis,
             "TP spotting": TP_spot,
