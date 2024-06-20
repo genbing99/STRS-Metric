@@ -23,9 +23,14 @@ class Evaluator:
         """ Calculate metrics for the analysis task. """
         precision_list, recall_list, f1_list = [], [], []
 
+        new_TP_df = pd.DataFrame(columns=TP_df.columns)
+        for row_index, row in TP_df.iterrows():
+            if row["gt"]["emotion"] in analysis_emotion:
+                new_TP_df = new_TP_df.append(row, ignore_index=True)
+
         for emotion in analysis_emotion:
-            gt = [1 if x["emotion"]==emotion else 0 for x in TP_df["gt"]]
-            pred = [1 if x["emotion"]==emotion else 0 for x in TP_df["pred"]]
+            gt = [1 if x["emotion"]==emotion else 0 for x in new_TP_df["gt"]]
+            pred = [1 if x["emotion"]==emotion else 0 for x in new_TP_df["pred"]]
             try:
                 _, FP, FN, TP = confusion_matrix(gt, pred).ravel()
             except:
